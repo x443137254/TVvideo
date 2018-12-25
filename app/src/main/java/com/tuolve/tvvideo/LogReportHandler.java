@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 import okhttp3.Call;
 import okhttp3.Callback;
+import okhttp3.FormBody;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -125,7 +126,10 @@ class LogReportHandler implements Thread.UncaughtExceptionHandler {
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .writeTimeout(30,TimeUnit.SECONDS)
                 .build();
-        RequestBody body = RequestBody.create(MediaType.parse("application/json; charset=utf-8"),info.toString());
+        RequestBody body = new FormBody.Builder()
+                .add("params",info.toString())
+                .add("token","fe2d5e06a6a97520a00a62708ce18fc1b1c1129d")
+                .build();
         Request request = new Request.Builder()
                 .url("http://test.tuolve.com/app_video/web/api.php/Log/upload")
                 .post(body)
@@ -138,7 +142,7 @@ class LogReportHandler implements Thread.UncaughtExceptionHandler {
 
             @Override
             public void onResponse(@NonNull Call call, @NonNull Response response) throws IOException {
-                Log.d("a", "onResponse: " + response.body().string());
+                Log.d("aaaaaaa", "onResponse: " + response.body().string());
 
             }
         });

@@ -2,6 +2,7 @@ package com.tuolve.tvvideo;
 
 import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
@@ -60,7 +61,6 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnCom
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) actionBar.hide();
 
-
         videoPlayer = findViewById(R.id.video_player);
         progressBar = findViewById(R.id.progress_bar);
         client = new OkHttpClient.Builder()
@@ -68,11 +68,15 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnCom
                 .readTimeout(1, TimeUnit.HOURS)
                 .build();
         request = new Request.Builder().get().url(HOST + "/api.php/Cms/lists?&visit=public&t=test").build();
-        path = getFilesDir().getAbsolutePath() + "/videos";
+        path = Environment.getExternalStorageDirectory() + "/TV_videos";
+        if (!Environment.getExternalStorageState().equals("android.os.Environment.MEDIA_MOUNTED")){
+            Toast.makeText(this, "SD卡不存在", Toast.LENGTH_SHORT).show();
+            return;
+        }
         File file = new File(path);
         if (!file.exists() || file.isFile()) {
             if (!file.mkdirs()) {
-                Toast.makeText(this, "系统错误", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "视频创建失败", Toast.LENGTH_SHORT).show();
             }
         }
 
@@ -84,15 +88,14 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnCom
                 checkUpdate();
             }
         };
-        timer.schedule(task,0,300000);
+        timer.schedule(task, 0, 300000);
         videoPlayer.setOnCompletionListener(this);
 
-        if (files.length == 0) return;
+        if (files == null || files.length == 0) return;
         time = new long[files.length];
         for (int i = 0; i < files.length; i++) {
             time[i] = getDuration(i);
         }
-        int a = 1/0;
         synTime();
 
     }
@@ -143,40 +146,43 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnCom
 
     private void updateVideo() {
         //本地跟服务器视频列表对比，多的删除
-        List<Integer> deleteList = new ArrayList<>();
-        for (int i = 0; i < files.length; i++) {
-            File file = files[i];
-            String s = file.getName();
-            boolean needDelete = true;
-            for (int j = 0; j < urlList.size(); j++) {
-                if (s.equals(getMD5(HOST + "/" + urlList.get(i)) + ".mp4")) {
-                    needDelete = false;
-                    break;
+        if (files != null) {
+            List<Integer> deleteList = new ArrayList<>();
+            for (int i = 0; i < files.length; i++) {
+                File file = files[i];
+                String s = file.getName();
+                boolean needDelete = true;
+                for (int j = 0; j < urlList.size(); j++) {
+                    if (s.equals(getMD5(HOST + "/" + urlList.get(i)) + ".mp4")) {
+                        needDelete = false;
+                        break;
+                    }
+                }
+                if (needDelete) {
+                    deleteList.add(i);  //记录列表里哪个是已经被删掉了的，在下一步一起删除
                 }
             }
-            if (needDelete) {
-                deleteList.add(i);  //记录列表里哪个是已经被删掉了的，在下一步一起删除
+
+            for (int i = 0; i < deleteList.size(); i++) {
+                if (videoPlayer.isPlaying()) videoPlayer.pause();
+                boolean deleteResult = files[deleteList.get(i)].delete();
+                if (!deleteResult) {
+                    Toast.makeText(this, "视频删除失败", Toast.LENGTH_SHORT).show();
+                }
             }
         }
-
-        for (int i = 0; i < deleteList.size(); i++) {
-            if (videoPlayer.isPlaying()) videoPlayer.pause();
-            boolean deleteResult = files[deleteList.get(i)].delete();
-            if (!deleteResult) {
-                Toast.makeText(this, "视频删除失败", Toast.LENGTH_SHORT).show();
-            }
-        }
-
         //本地跟服务器视频列表对比，缺少的下载
         File dir = new File(path);
         files = dir.listFiles();
         for (int i = 0; i < urlList.size(); i++) {
             String s = getMD5(HOST + "/" + urlList.get(i)) + ".mp4";
             boolean needDownload = true;
-            for (File file : files) {
-                if (s.equals(file.getName())) {
-                    needDownload = false;
-                    break;
+            if (files != null) {
+                for (File file : files) {
+                    if (s.equals(file.getName())) {
+                        needDownload = false;
+                        break;
+                    }
                 }
             }
             if (needDownload) {
@@ -274,34 +280,36 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnCom
 
     private void synTime() {
         long max = 0;
-        for (long l: time){
+        for (long l : time) {
             max += l;
         }
         long offTime = System.currentTimeMillis() % max;
         index = 0;
         long off = getOffset(offTime);
 
-        videoPlayer.setVideoPath(files[index].getAbsolutePath());
-        videoPlayer.seekTo((int) off);
-        videoPlayer.start();
+        if (files != null) {
+            videoPlayer.setVideoPath(files[index].getAbsolutePath());
+            videoPlayer.seekTo((int) off);
+            videoPlayer.start();
+        }
     }
 
     private long getOffset(long t) {
         if (t < time[index]) {
             return t;
-        }else {
+        } else {
             index++;
-           return getOffset(t - time[index-1]);
+            return getOffset(t - time[index - 1]);
         }
     }
 
-    private long getDuration(int i){
+    private long getDuration(int i) {
         MediaPlayer mediaPlayer = new MediaPlayer();
         try {
             mediaPlayer.setDataSource(files[i].getPath());
             mediaPlayer.prepare();
             return mediaPlayer.getDuration();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return 0;
         }
