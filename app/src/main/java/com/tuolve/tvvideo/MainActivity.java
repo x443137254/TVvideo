@@ -69,10 +69,10 @@ public class MainActivity extends AppCompatActivity implements MediaPlayer.OnCom
                 .build();
         request = new Request.Builder().get().url(HOST + "/api.php/Cms/lists?&visit=public&t=test").build();
         path = Environment.getExternalStorageDirectory() + "/TV_videos";
-        if (!Environment.getExternalStorageState().equals("android.os.Environment.MEDIA_MOUNTED")){
-            Toast.makeText(this, "SD卡不存在", Toast.LENGTH_SHORT).show();
-            return;
-        }
+//        if (!Environment.getExternalStorageState().equals("android.os.Environment.MEDIA_MOUNTED")){
+//            Toast.makeText(this, "SD卡不存在", Toast.LENGTH_SHORT).show();
+//            return;
+//        }
         File file = new File(path);
         if (!file.exists() || file.isFile()) {
             if (!file.mkdirs()) {
